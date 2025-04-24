@@ -4,50 +4,99 @@
 //
 //  Created by Jung H Hwang on 4/21/25.
 //
-
 import SwiftUI
 
+struct Player: Identifiable {
+    let id   = UUID()
+    let name: String
+    var life: Int = 20
+}
+
 struct ContentView: View {
-    @State private var life1 = 20
-    @State private var life2 = 20
+    @State private var players: [Player] = (1...4).map { Player(name: "Player \($0)") }
+    @State private var history: [String] = []
+    @State private var chunk: Int = 5
+
+    // Game is “started” once any life ≠ 20
+    private var gameStarted: Bool { players.contains { $0.life != 20 } }
+    // Game is over once any life ≤ 0
+    private var gameOver:   Bool { players.contains { $0.life <= 0 } }
+
+    // Two equally flexible columns
+    private let twoColumns = [
+        GridItem(.flexible(), spacing: 16),
+        GridItem(.flexible(), spacing: 16)
+    ]
 
     var body: some View {
-        GeometryReader { geo in
-            let isPortrait = geo.size.height > geo.size.width
+        NavigationView {
+            VStack(spacing: 12) {
 
-            ZStack {
-                // Portrait: top & bottom, flipping the top for Player 1
-                if isPortrait {
-                    VStack(spacing: 0) {
-                        PlayerPanel(name: "Player 1", life: $life1)
-                            .rotationEffect(.degrees(180))
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // ── Top controls ──
+                HStack {
+                    Button("Add Player") {
+                        let next = players.count + 1
+                        players.append(Player(name: "Player \(next)"))
+                    }
+                    .disabled((gameStarted && !gameOver) || players.count >= 8)
 
-                        Divider()
+                    Spacer()
 
-                        PlayerPanel(name: "Player 2", life: $life2)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    NavigationLink("History") {
+                        HistoryView(history: history)
                     }
                 }
-                // Landscape: side by side, no flipping
-                else {
-                    HStack(spacing: 0) {
-                        PlayerPanel(name: "Player 1", life: $life1)
-                        PlayerPanel(name: "Player 2", life: $life2)
+                .padding(.horizontal)
+
+                // ── Global chunk control ──
+                HStack {
+                    Text("Chunk:")
+                    TextField("Δ", value: $chunk, format: .number)
+                        .keyboardType(.numberPad)
+                        .frame(width: 60)
+                        .textFieldStyle(.roundedBorder)
+                    Spacer()
+                }
+                .padding(.horizontal)
+
+                // ── Always two columns, horizontally ──
+                ScrollView {
+                    LazyVGrid(columns: twoColumns, spacing: 16) {
+                        ForEach(players.indices, id: \.self) { idx in
+                            panel(at: idx)
+                                .frame(maxWidth: .infinity)
+                                .aspectRatio(1, contentMode: .fit)
+                        }
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.horizontal)
                 }
-            }
-            .edgesIgnoringSafeArea(.all)
-            // Loser banner always at the bottom
-            .overlay(alignment: .bottom) {
-                if life1 <= 0 {
-                    LoserBanner(text: "Player 1 LOSES!")
-                } else if life2 <= 0 {
-                    LoserBanner(text: "Player 2 LOSES!")
+
+                // ── Loser banner ──
+                if gameOver, let loser = players.first(where: { $0.life <= 0 }) {
+                    LoserBanner(text: "\(loser.name) LOSES!")
                 }
+
+                Spacer()
             }
+            .navigationTitle("Life Counter v2")
         }
+    }
+
+    @ViewBuilder
+    private func panel(at idx: Int) -> some View {
+        PlayerPanel(
+            name: players[idx].name,
+            life: $players[idx].life,
+            chunk: chunk,
+            onChange: { delta in
+                let verb = delta > 0 ? "gained" : "lost"
+                history.append("\(players[idx].name) \(verb) \(abs(delta)) life.")
+            },
+            onDelete: {
+                let removed = players.remove(at: idx)
+                history.append("\(removed.name) was removed.")
+            }
+        )
     }
 }
 

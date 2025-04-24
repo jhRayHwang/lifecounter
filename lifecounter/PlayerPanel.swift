@@ -10,34 +10,55 @@ import SwiftUI
 struct PlayerPanel: View {
     let name: String
     @Binding var life: Int
+    let chunk: Int                      // ← new
+    var onChange: (Int) -> Void
+    var onDelete:   ()  -> Void
 
     var body: some View {
-        VStack(spacing: 16) {
-            Text(name)
-                .font(.title2)
-                .bold()
+        ZStack(alignment: .topTrailing) {
+            VStack(spacing: 8) {
+                Text(name)
+                    .font(.headline)
 
-            Text("\(life)")
-                .font(.system(size: 72, weight: .semibold, design: .rounded))
-                .minimumScaleFactor(0.5)
+                Text("\(life)")
+                    .font(.system(size: 48, weight: .semibold))
+                    .minimumScaleFactor(0.5)
 
-            // +1 / –1
-            HStack(spacing: 16) {
-                LifeButton(label: "+",  action: { life += 1 })
-                LifeButton(label: "–",  action: { life -= 1 })
+                // ±1 buttons
+                HStack(spacing: 12) {
+                    LifeButton(label: "+") {
+                        life += 1; onChange(1)
+                    }
+                    LifeButton(label: "–") {
+                        life -= 1; onChange(-1)
+                    }
+                }
+
+                // ±chunk buttons, using the passed-in chunk
+                HStack(spacing: 12) {
+                    LifeButton(label: "+\(chunk)") {
+                        life += chunk; onChange(chunk)
+                    }
+                    LifeButton(label: "–\(chunk)") {
+                        life -= chunk; onChange(-chunk)
+                    }
+                }
             }
+            .padding()
+            .background(Color(UIColor.secondarySystemBackground))
+            .cornerRadius(8)
 
-            // +5 / –5
-            HStack(spacing: 16) {
-                LifeButton(label: "+5", action: { life += 5 })
-                LifeButton(label: "–5", action: { life -= 5 })
+            // delete button in corner
+            Button(action: onDelete) {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundColor(.red)
+                    .font(.title2)
             }
+            .padding(6)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
-        .background(Color(UIColor.secondarySystemBackground))
     }
 }
+
 
 struct LifeButton: View {
     let label: String
